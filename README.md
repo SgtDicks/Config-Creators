@@ -42,11 +42,6 @@ The vRising Config Editor is a graphical user interface (GUI) tool designed to h
 ### Contributing
 Contributions are welcome! If you find a bug or have a feature request, please open an issue or submit a pull request.
 
-### License
-This project is licensed under the MIT License.
-
-### Contact
-For any questions or support, please contact `your.email@example.com`.
 
 ---
 
