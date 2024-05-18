@@ -1,6 +1,7 @@
 import json
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
+from mcrcon import MCRcon  # Import the mcrcon library
 import tooltip  # Import the tooltip library
 
 # Save the configuration to a JSON file
@@ -15,6 +16,28 @@ def load_config(filename):
             return json.load(file)
     except FileNotFoundError:
         return {}
+
+# RCON client functions
+def connect_rcon():
+    global rcon_client
+    rcon_host = rcon_host_var.get()
+    rcon_port = int(rcon_port_var.get())
+    rcon_password = rcon_password_var.get()
+    try:
+        rcon_client = MCRcon(rcon_host, rcon_password, port=rcon_port)
+        rcon_client.connect()
+        messagebox.showinfo("Success", "RCON connected successfully!")
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to connect to RCON: {e}")
+
+def send_rcon_command():
+    global rcon_client
+    command = rcon_command_var.get()
+    try:
+        response = rcon_client.command(command)
+        rcon_output_text.insert(tk.END, response + '\n')
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to send RCON command: {e}")
 
 # Update ServerGameSettings.json configuration values from the GUI
 def update_game_settings():
@@ -91,6 +114,10 @@ def update_host_settings():
         config['MaxConnectedAdmins'] = int(host_config_vars['MaxConnectedAdmins'].get())
         config['AutoSaveCount'] = int(host_config_vars['AutoSaveCount'].get())
         config['AutoSaveInterval'] = int(host_config_vars['AutoSaveInterval'].get())
+        config['Rcon']['Enabled'] = bool(host_config_vars['RconEnabled'].get())
+        config['Rcon']['Port'] = int(host_config_vars['RconPort'].get())
+        config['Rcon']['Password'] = host_config_vars['RconPassword'].get()
+        config['API']['Enabled'] = bool(host_config_vars['APIEnabled'].get())
         save_config(config, host_settings_file)
         messagebox.showinfo("Success", "Configuration saved successfully!")
     else:
@@ -115,6 +142,7 @@ root = tk.Tk()
 root.title("vRising Config Editor")
 game_settings_file = None
 host_settings_file = None
+rcon_client = None  # RCON client variable
 
 # Create a Notebook widget
 notebook = ttk.Notebook(root)
@@ -123,9 +151,11 @@ notebook.pack(expand=1, fill="both")
 # Create frames for each tab
 game_settings_frame = ttk.Frame(notebook)
 host_settings_frame = ttk.Frame(notebook)
+rcon_frame = ttk.Frame(notebook)
 
 notebook.add(game_settings_frame, text='ServerGameSettings')
 notebook.add(host_settings_frame, text='ServerHostSettings')
+notebook.add(rcon_frame, text='RCON Client')
 
 # Define tkinter variables for each ServerGameSettings.json config option
 game_config_vars = {
@@ -271,20 +301,28 @@ game_settings_presets = [
 # Define tkinter variables for each ServerHostSettings.json config option with default values
 host_config_vars = {
     "Name": tk.StringVar(value="v-rising Server"),
-    "Description": tk.StringVar(value="Editor by slanted corp, enjoy!"),
+    "Description": tk.StringVar(value="Editor by Slanted Corp, enjoy!"),
     "Port": tk.StringVar(value="9876"),
     "QueryPort": tk.StringVar(value="9877"),
-    "MaxConnectedUsers": tk.StringVar(value="10"),
-    "MaxConnectedAdmins": tk.StringVar(value="1"),
+    "MaxConnectedUsers": tk.StringVar(value="40"),
+    "MaxConnectedAdmins": tk.StringVar(value="4"),
+    "ServerFps": tk.StringVar(value="30"),
     "SaveName": tk.StringVar(value="world1"),
     "Password": tk.StringVar(value=""),
-    "ListOnMasterServer": tk.BooleanVar(value=True),
     "Secure": tk.BooleanVar(value=True),
+    "ListOnSteam": tk.BooleanVar(value=True),
+    "ListOnEOS": tk.BooleanVar(value=True),
+    "AutoSaveCount": tk.StringVar(value="20"),
+    "AutoSaveInterval": tk.StringVar(value="120"),
+    "CompressSaveFiles": tk.BooleanVar(value=True),
+    "GameSettingsPreset": tk.StringVar(value=""),
+    "GameDifficultyPreset": tk.StringVar(value=""),
     "AdminOnlyDebugEvents": tk.BooleanVar(value=True),
     "DisableDebugEvents": tk.BooleanVar(value=False),
-    "AutoSaveCount": tk.StringVar(value="40"),
-    "AutoSaveInterval": tk.StringVar(value="120"),
-    "GameSettingsPreset": tk.StringVar(value="")
+    "APIEnabled": tk.BooleanVar(value=False),
+    "RconEnabled": tk.BooleanVar(value=True),
+    "RconPort": tk.StringVar(value="25575"),
+    "RconPassword": tk.StringVar(value="SomeOTHERRandomPassw0rd")
 }
 
 # Define labels for each ServerHostSettings.json config option
@@ -295,15 +333,23 @@ host_config_options = {
     "QueryPort": ("Query Port", "UDP port for Steam server list features"),
     "MaxConnectedUsers": ("Max Connected Users", "Max number of concurrent players on server"),
     "MaxConnectedAdmins": ("Max Connected Admins", "Max number of admins to allow connect even when server is full"),
+    "ServerFps": ("Server FPS", "Server frame rate"),
     "SaveName": ("Save Name", "Name of save file/directory"),
     "Password": ("Password", "Set a password or leave empty"),
-    "ListOnMasterServer": ("List On Master Server", "Set to true to list on server list, else set to false"),
     "Secure": ("Secure", "Use secure connections"),
-    "AdminOnlyDebugEvents": ("Admin Only Debug Events", "Enable debug events for admins only"),
-    "DisableDebugEvents": ("Disable Debug Events", "Disable all debug events"),
+    "ListOnSteam": ("List On Steam", "Set to true to list on Steam server list, else set to false"),
+    "ListOnEOS": ("List On EOS", "Set to true to list on EOS server list, else set to false"),
     "AutoSaveCount": ("Auto Save Count", "Number of autosaves to keep"),
     "AutoSaveInterval": ("Auto Save Interval", "Interval in seconds between each auto save"),
-    "GameSettingsPreset": ("Game Settings Preset", "Name of a GameSettings preset found in the GameSettingPresets folder")
+    "CompressSaveFiles": ("Compress Save Files", "Set to true to compress save files"),
+    "GameSettingsPreset": ("Game Settings Preset", "Name of a GameSettings preset found in the GameSettingPresets folder"),
+    "GameDifficultyPreset": ("Game Difficulty Preset", "Name of a GameDifficulty preset found in the GameDifficultyPresets folder"),
+    "AdminOnlyDebugEvents": ("Admin Only Debug Events", "Enable debug events for admins only"),
+    "DisableDebugEvents": ("Disable Debug Events", "Disable all debug events"),
+    "APIEnabled": ("API Enabled", "Enable or disable the API"),
+    "RconEnabled": ("RCON Enabled", "Enable or disable RCON"),
+    "RconPort": ("RCON Port", "Port for RCON"),
+    "RconPassword": ("RCON Password", "Password for RCON")
 }
 
 # Define a function to create a row in the GUI
@@ -333,14 +379,40 @@ for key, (label, choices, tooltip_text) in game_config_options.items():
 row = 0
 column = 0
 for key, (label, tooltip_text) in host_config_options.items():
-    if key == "GameSettingsPreset":
-        create_row(host_settings_frame, label, host_config_vars[key], game_settings_presets, row, column, tooltip_text)
-    else:
-        create_row(host_settings_frame, label, host_config_vars[key], [], row, column, tooltip_text)
-    if row > 20:  # Adjust number of rows before moving to the next column
+    create_row(host_settings_frame, label, host_config_vars[key], [], row, column, tooltip_text)
+    if row > 30:  # Adjust number of rows before moving to the next column
         row = 0
         column += 2
     row += 1
+
+# Adjust the window size dynamically based on the number of rows and columns
+def adjust_window_size():
+    max_columns = max(len(game_config_options) // 20, len(host_config_options) // 20) + 1
+    root.geometry(f"{max_columns * 400}x550")
+
+# RCON Client GUI
+tk.Label(rcon_frame, text="RCON Host:").grid(row=0, column=0, sticky='e')
+rcon_host_var = tk.StringVar(value="127.0.0.1")
+tk.Entry(rcon_frame, textvariable=rcon_host_var, width=40).grid(row=0, column=1, sticky='w')
+
+tk.Label(rcon_frame, text="RCON Port:").grid(row=1, column=0, sticky='e')
+rcon_port_var = tk.StringVar(value="25575")
+tk.Entry(rcon_frame, textvariable=rcon_port_var, width=40).grid(row=1, column=1, sticky='w')
+
+tk.Label(rcon_frame, text="RCON Password:").grid(row=2, column=0, sticky='e')
+rcon_password_var = tk.StringVar(value="")
+tk.Entry(rcon_frame, textvariable=rcon_password_var, width=40, show="*").grid(row=2, column=1, sticky='w')
+
+tk.Button(rcon_frame, text="Connect", command=connect_rcon).grid(row=3, column=1, sticky='w')
+
+tk.Label(rcon_frame, text="RCON Command:").grid(row=4, column=0, sticky='e')
+rcon_command_var = tk.StringVar(value="")
+tk.Entry(rcon_frame, textvariable=rcon_command_var, width=40).grid(row=4, column=1, sticky='w')
+
+tk.Button(rcon_frame, text="Send Command", command=send_rcon_command).grid(row=5, column=1, sticky='w')
+
+rcon_output_text = tk.Text(rcon_frame, height=10, width=80)
+rcon_output_text.grid(row=6, column=0, columnspan=2)
 
 # Add a menu for loading and saving
 menu_bar = tk.Menu(root)
@@ -351,6 +423,9 @@ file_menu.add_command(label="Load Host Settings", command=load_host_settings)
 file_menu.add_command(label="Save Host Settings", command=update_host_settings)
 menu_bar.add_cascade(label="File", menu=file_menu)
 root.config(menu=menu_bar)
+
+# Adjust the window size based on the content
+adjust_window_size()
 
 # Start the GUI event loop
 root.mainloop()
