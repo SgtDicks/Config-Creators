@@ -113,7 +113,6 @@ def load_host_settings():
 # Create the main window
 root = tk.Tk()
 root.title("vRising Config Editor")
-root.iconbitmap('app_icon.ico')  # Set the icon for the application
 game_settings_file = None
 host_settings_file = None
 
