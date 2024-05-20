@@ -3,6 +3,102 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from mcrcon import MCRcon  # Import the mcrcon library
 import tooltip  # Import the tooltip library
+import requests  # Import requests to check for GitHub updates
+import subprocess  # Import subprocess to run SteamCMD commands
+import os
+import zipfile
+import urllib.request
+import threading  # Import threading to run commands in the background
+
+# GitHub repository details
+REPO_OWNER = "SgtDicks"
+REPO_NAME = "Config-Creators"
+APP_VERSION = "0.6"
+
+# Default configurations
+default_game_config = {
+    "GameModeType": "PvP",
+    "CastleDamageMode": "Always",
+    "SiegeWeaponHealth": "Normal",
+    "PlayerDamageMode": "Always",
+    "CastleHeartDamageMode": "CanBeDestroyedByPlayers",
+    "PvPProtectionMode": "Medium",
+    "DeathContainerPermission": "Anyone",
+    "RelicSpawnType": "Unique",
+    "CanLootEnemyContainers": True,
+    "BloodBoundEquipment": True,
+    "TeleportBoundItems": True,
+    "AllowGlobalChat": True,
+    "AllWaypointsUnlocked": False,
+    "FreeCastleClaim": False,
+    "FreeCastleDestroy": False,
+    "InactivityKillEnabled": True,
+    "InactivityKillTimeMin": 3600,
+    "InactivityKillTimeMax": 604800,
+    "InactivityKillSafeTimeAddition": 172800,
+    "InactivityKillTimerMaxItemLevel": 84,
+    "DisableDisconnectedDeadEnabled": True,
+    "DisableDisconnectedDeadTimer": 60,
+    "InventoryStacksModifier": 1.0,
+    "DropTableModifier_General": 1.0,
+    "DropTableModifier_Missions": 1.0,
+    "MaterialYieldModifier_Global": 1.0,
+    "BloodEssenceYieldModifier": 1.0,
+    "JournalVBloodSourceUnitMaxDistance": 25.0,
+    "PvPVampireRespawnModifier": 1.0,
+    "CastleMinimumDistanceInFloors": 2,
+    "ClanSize": 4,
+    "BloodDrainModifier": 1.0,
+    "DurabilityDrainModifier": 1.0,
+    "GarlicAreaStrengthModifier": 1.0,
+    "HolyAreaStrengthModifier": 1.0,
+    "SilverStrengthModifier": 1.0,
+    "SunDamageModifier": 1.0,
+    "CastleDecayRateModifier": 1.0,
+    "CastleBloodEssenceDrainModifier": 1.0,
+    "CastleSiegeTimer": 420.0,
+    "CastleUnderAttackTimer": 60.0,
+    "AnnounceSiegeWeaponSpawn": True,
+    "ShowSiegeWeaponMapIcon": True,
+    "BuildCostModifier": 1.0,
+    "RecipeCostModifier": 1.0,
+    "CraftRateModifier": 1.0,
+    "ResearchCostModifier": 1.0,
+    "RefinementCostModifier": 1.0,
+    "RefinementRateModifier": 1.0,
+    "ResearchTimeModifier": 1.0,
+    "DismantleResourceModifier": 0.75,
+    "ServantConvertRateModifier": 1.0,
+    "RepairCostModifier": 1.0,
+    "Death_DurabilityFactorLoss": 0.25,
+    "Death_DurabilityLossFactorAsResources": 1.0,
+    "StarterEquipmentId": 0,
+    "StarterResourcesId": 0
+}
+
+default_host_config = {
+    "Name": "v-rising Server",
+    "Description": "Editor by Slanted Corp, enjoy!",
+    "Port": 9876,
+    "QueryPort": 9877,
+    "MaxConnectedUsers": 40,
+    "MaxConnectedAdmins": 4,
+    "ServerFps": 30,
+    "SaveName": "world1",
+    "Password": "",
+    "Secure": True,
+    "ListOnSteam": True,
+    "ListOnEOS": True,
+    "AutoSaveCount": 20,
+    "AutoSaveInterval": 120,
+    "CompressSaveFiles": True,
+    "GameSettingsPreset": "",
+    "GameDifficultyPreset": "",
+    "AdminOnlyDebugEvents": True,
+    "DisableDebugEvents": False,
+    "API": {"Enabled": False},
+    "Rcon": {"Enabled": True, "Port": 25575, "Password": "SomeOTHERRandomPassw0rd"}
+}
 
 # Save the configuration to a JSON file
 def save_config(config, filename):
@@ -16,6 +112,98 @@ def load_config(filename):
             return json.load(file)
     except FileNotFoundError:
         return {}
+
+# Redirect output to the console
+def append_to_console(output_text):
+    console_text.config(state=tk.NORMAL)
+    console_text.insert(tk.END, output_text)
+    console_text.see(tk.END)
+    console_text.config(state=tk.DISABLED)
+
+# SteamCMD functions
+def run_steamcmd_command(command):
+    try:
+        append_to_console(f"Running command: {command}\n")
+        result = subprocess.run(command, capture_output=True, text=True, shell=True)
+        append_to_console(result.stdout)
+        if result.stderr:
+            append_to_console(result.stderr)
+    except Exception as e:
+        append_to_console(f"Error: {e}\n")
+
+def download_and_extract_steamcmd():
+    url = "https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip"
+    local_zip_path = "steamcmd.zip"
+    extract_path = "steamcmd"
+
+    try:
+        append_to_console(f"Downloading SteamCMD from {url}...\n")
+        urllib.request.urlretrieve(url, local_zip_path)
+        append_to_console("Extracting SteamCMD...\n")
+        with zipfile.ZipFile(local_zip_path, 'r') as zip_ref:
+            zip_ref.extractall(extract_path)
+        os.remove(local_zip_path)
+        append_to_console("SteamCMD downloaded and extracted.\n")
+        return os.path.join(extract_path, "steamcmd.exe")
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to download and extract SteamCMD: {e}")
+        return None
+
+def install_server():
+    def _install_server():
+        steamcmd_path = steamcmd_path_var.get()
+        if not os.path.isfile(steamcmd_path):
+            steamcmd_path = download_and_extract_steamcmd()
+            steamcmd_path_var.set(steamcmd_path)
+        app_id = app_id_var.get()
+        if not steamcmd_path or not app_id:
+            messagebox.showerror("Error", "SteamCMD path and App ID are required.")
+            return
+        command = f'"{steamcmd_path}" +login anonymous +force_install_dir "{install_dir_var.get()}" +app_update {app_id} validate +quit'
+        run_steamcmd_command(command)
+    
+    threading.Thread(target=_install_server).start()
+
+def update_server():
+    def _update_server():
+        steamcmd_path = steamcmd_path_var.get()
+        if not os.path.isfile(steamcmd_path):
+            steamcmd_path = download_and_extract_steamcmd()
+            steamcmd_path_var.set(steamcmd_path)
+        app_id = app_id_var.get()
+        if not steamcmd_path or not app_id:
+            messagebox.showerror("Error", "SteamCMD path and App ID are required.")
+            return
+        command = f'"{steamcmd_path}" +login anonymous +force_install_dir "{install_dir_var.get()}" +app_update {app_id} +quit'
+        run_steamcmd_command(command)
+    
+    threading.Thread(target=_update_server).start()
+
+server_process = None
+
+def start_server():
+    global server_process
+    def _start_server():
+        global server_process
+        server_executable_path = os.path.join(install_dir_var.get(), "VRisingServer.exe")
+        if not os.path.isfile(server_executable_path):
+            append_to_console(f"Server executable not found at {server_executable_path}\n")
+            return
+        append_to_console("Starting server...\n")
+        server_process = subprocess.Popen([server_executable_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        for stdout_line in iter(server_process.stdout.readline, ""):
+            append_to_console(stdout_line)
+        server_process.stdout.close()
+    threading.Thread(target=_start_server).start()
+
+def stop_server():
+    global server_process
+    if server_process:
+        server_process.terminate()
+        server_process = None
+        append_to_console("Server stopped successfully.\n")
+    else:
+        messagebox.showerror("Error", "No server is currently running.")
 
 # RCON client functions
 def connect_rcon():
@@ -86,7 +274,9 @@ def update_game_settings():
         save_config(config, game_settings_file)
         messagebox.showinfo("Success", "Configuration saved successfully!")
     else:
-        messagebox.showerror("Error", "No file loaded!")
+        game_settings_file = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON files", "*.json")])
+        if game_settings_file:
+            update_game_settings()
 
 # Load ServerGameSettings.json configuration from a selected file
 def load_game_settings():
@@ -101,6 +291,8 @@ def load_game_settings():
                 else:
                     game_config_vars[key].set(str(value))
         messagebox.showinfo("Success", f"Configuration loaded from {game_settings_file}")
+    else:
+        set_default_game_config()
 
 # Update ServerHostSettings.json configuration values from the GUI
 def update_host_settings():
@@ -114,14 +306,20 @@ def update_host_settings():
         config['MaxConnectedAdmins'] = int(host_config_vars['MaxConnectedAdmins'].get())
         config['AutoSaveCount'] = int(host_config_vars['AutoSaveCount'].get())
         config['AutoSaveInterval'] = int(host_config_vars['AutoSaveInterval'].get())
-        config['Rcon']['Enabled'] = bool(host_config_vars['RconEnabled'].get())
-        config['Rcon']['Port'] = int(host_config_vars['RconPort'].get())
-        config['Rcon']['Password'] = host_config_vars['RconPassword'].get()
-        config['API']['Enabled'] = bool(host_config_vars['APIEnabled'].get())
+        config['Rcon'] = {
+            'Enabled': bool(host_config_vars['RconEnabled'].get()),
+            'Port': int(host_config_vars['RconPort'].get()),
+            'Password': host_config_vars['RconPassword'].get()
+        }
+        config['API'] = {
+            'Enabled': bool(host_config_vars['APIEnabled'].get())
+        }
         save_config(config, host_settings_file)
         messagebox.showinfo("Success", "Configuration saved successfully!")
     else:
-        messagebox.showerror("Error", "No file loaded!")
+        host_settings_file = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON files", "*.json")])
+        if host_settings_file:
+            update_host_settings()
 
 # Load ServerHostSettings.json configuration from a selected file
 def load_host_settings():
@@ -136,10 +334,44 @@ def load_host_settings():
                 else:
                     host_config_vars[key].set(str(value))
         messagebox.showinfo("Success", f"Configuration loaded from {host_settings_file}")
+    else:
+        set_default_host_config()
+
+def set_default_game_config():
+    for key, value in default_game_config.items():
+        if key in game_config_vars:
+            if isinstance(game_config_vars[key], tk.BooleanVar):
+                game_config_vars[key].set(int(value))
+            else:
+                game_config_vars[key].set(str(value))
+
+def set_default_host_config():
+    for key, value in default_host_config.items():
+        if key in host_config_vars:
+            if isinstance(host_config_vars[key], tk.BooleanVar):
+                host_config_vars[key].set(int(value))
+            else:
+                host_config_vars[key].set(str(value))
+
+def check_for_updates():
+    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/releases/latest"
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        latest_release = response.json()
+        latest_version = latest_release["tag_name"]
+        release_notes = latest_release["body"]
+        
+        if latest_version == f"V{APP_VERSION}":
+            messagebox.showinfo("Up-to-date", f"Your application is up-to-date (version {APP_VERSION}).")
+        else:
+            messagebox.showinfo("Update Available", f"Version {latest_version} is available.\n\nRelease notes:\n{release_notes}")
+    except requests.RequestException as e:
+        messagebox.showerror("Update Check Failed", f"Could not check for updates: {e}")
 
 # Create the main window
 root = tk.Tk()
-root.title("vRising Config Editor")
+root.title(f"vRising Server Manager V{APP_VERSION}")
 game_settings_file = None
 host_settings_file = None
 rcon_client = None  # RCON client variable
@@ -152,10 +384,12 @@ notebook.pack(expand=1, fill="both")
 game_settings_frame = ttk.Frame(notebook)
 host_settings_frame = ttk.Frame(notebook)
 rcon_frame = ttk.Frame(notebook)
+steamcmd_frame = ttk.Frame(notebook)
 
 notebook.add(game_settings_frame, text='ServerGameSettings')
 notebook.add(host_settings_frame, text='ServerHostSettings')
 notebook.add(rcon_frame, text='RCON Client')
+notebook.add(steamcmd_frame, text='SteamCMD')
 
 # Define tkinter variables for each ServerGameSettings.json config option
 game_config_vars = {
@@ -387,8 +621,10 @@ for key, (label, tooltip_text) in host_config_options.items():
 
 # Adjust the window size dynamically based on the number of rows and columns
 def adjust_window_size():
-    max_columns = max(len(game_config_options) // 20, len(host_config_options) // 20) + 1
-    root.geometry(f"{max_columns * 400}x550")
+    game_rows = len(game_config_options)
+    host_rows = len(host_config_options)
+    max_columns = max(game_rows // 20, host_rows // 30) + 1
+    root.geometry(f"{max_columns * 380}x{350 + max(game_rows, host_rows) * 5}")
 
 # RCON Client GUI
 tk.Label(rcon_frame, text="RCON Host:").grid(row=0, column=0, sticky='e')
@@ -414,6 +650,46 @@ tk.Button(rcon_frame, text="Send Command", command=send_rcon_command).grid(row=5
 rcon_output_text = tk.Text(rcon_frame, height=10, width=80)
 rcon_output_text.grid(row=6, column=0, columnspan=2)
 
+# SteamCMD GUI
+tk.Label(steamcmd_frame, text="SteamCMD Path:").grid(row=0, column=0, sticky='e')
+steamcmd_path_var = tk.StringVar(value="C:/steamcmd/steamcmd.exe")
+tk.Entry(steamcmd_frame, textvariable=steamcmd_path_var, width=40).grid(row=0, column=1, sticky='w')
+
+tk.Label(steamcmd_frame, text="App ID:").grid(row=1, column=0, sticky='e')
+app_id_var = tk.StringVar(value="1829350")  # Replace with V Rising's actual App ID
+tk.Entry(steamcmd_frame, textvariable=app_id_var, width=40).grid(row=1, column=1, sticky='w')
+
+tk.Label(steamcmd_frame, text="Install Directory:").grid(row=2, column=0, sticky='e')
+install_dir_var = tk.StringVar(value="C:/steamcmd/steamapps/common/VRisingDedicatedServer")
+tk.Entry(steamcmd_frame, textvariable=install_dir_var, width=40).grid(row=2, column=1, sticky='w')
+
+tk.Button(steamcmd_frame, text="Install Server", command=install_server).grid(row=3, column=1, sticky='w')
+tk.Button(steamcmd_frame, text="Update Server", command=update_server).grid(row=4, column=1, sticky='w')
+
+# Add start and stop server buttons
+tk.Button(steamcmd_frame, text="Start Server", command=start_server).grid(row=5, column=1, sticky='w')
+tk.Button(steamcmd_frame, text="Stop Server", command=stop_server).grid(row=6, column=1, sticky='w')
+
+instructions = """
+1. Ensure you have a stable internet connection.
+2. Click "Install Server" to download and install SteamCMD and the V Rising server.
+2.5 This may look like it is frozen, it is still processing in the backgound.
+3. If SteamCMD is not already installed, the tool will download and set it up for you.
+4. Once SteamCMD is set up, the tool will automatically download the V Rising server files.
+5. Click "Update Server" to update the server files to the latest version.
+6. Use the "Start Server" and "Stop Server" buttons to control the server.
+7. Check the console output for progress and any potential issues.
+"""
+
+tk.Label(steamcmd_frame, text=instructions, justify="left", wraplength=500).grid(row=7, column=0, columnspan=2, sticky='w')
+
+# Console output
+console_frame = ttk.Frame(root)
+console_frame.pack(expand=1, fill="both")
+
+console_text = tk.Text(console_frame, height=10, state=tk.DISABLED)
+console_text.pack(expand=1, fill="both")
+
 # Add a menu for loading and saving
 menu_bar = tk.Menu(root)
 file_menu = tk.Menu(menu_bar, tearoff=0)
@@ -421,6 +697,7 @@ file_menu.add_command(label="Load Game Settings", command=load_game_settings)
 file_menu.add_command(label="Save Game Settings", command=update_game_settings)
 file_menu.add_command(label="Load Host Settings", command=load_host_settings)
 file_menu.add_command(label="Save Host Settings", command=update_host_settings)
+file_menu.add_command(label="Check for Updates", command=check_for_updates)
 menu_bar.add_cascade(label="File", menu=file_menu)
 root.config(menu=menu_bar)
 
@@ -429,4 +706,3 @@ adjust_window_size()
 
 # Start the GUI event loop
 root.mainloop()
-
