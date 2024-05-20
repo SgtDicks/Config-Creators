@@ -7,7 +7,7 @@
   - Download and extract SteamCMD automatically if not already installed.
 
 - **Check for Updates**: 
-  - Easily check for new releases of the vRising Config Editor directly from the application.
+  - Easily check for new releases of the vRising Server Manager/Config Editor directly from the application.
   - Get notified if a new version is available with release notes.
 
 ### Enhancements
@@ -24,7 +24,7 @@
 2. **Run the executable** to launch the vRising Config Editor.
 
 ### Usage
-1. **Launch the Application**: Run the `vRisingConfigEditor.exe` file.
+1. **Launch the Application**: Run the `VRisingServerManagerV0.6.exe` file.
 2. **Configure Settings**: Use the GUI to load, edit, and save your `ServerGameSettings.json` and `ServerHostSettings.json` files.
 3. **Install/Update Server**: Use the SteamCMD tab to install or update your vRising server.
 4. **Check for Updates**: Use the File menu to check for updates to the vRising Config Editor.
