@@ -1,19 +1,19 @@
 import json
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
-from mcrcon import MCRcon  # Import the mcrcon library
-import tooltip  # Import the tooltip library
-import requests  # Import requests to check for GitHub updates
-import subprocess  # Import subprocess to run SteamCMD commands
+from mcrcon import MCRcon
+import tooltip
+import requests
+import subprocess
 import os
 import zipfile
 import urllib.request
-import threading  # Import threading to run commands in the background
+import threading
 
 # GitHub repository details
 REPO_OWNER = "SgtDicks"
 REPO_NAME = "Config-Creators"
-APP_VERSION = "0.6"
+APP_VERSION = "0.7"
 
 # Default configurations
 default_game_config = {
@@ -73,7 +73,11 @@ default_game_config = {
     "Death_DurabilityFactorLoss": 0.25,
     "Death_DurabilityLossFactorAsResources": 1.0,
     "StarterEquipmentId": 0,
-    "StarterResourcesId": 0
+    "StarterResourcesId": 0,
+    "HeightLimit": 6,
+    "FloorLimit": 800,
+    "ServantLimit": 20,
+    "CastleLimit": 5
 }
 
 default_host_config = {
@@ -362,7 +366,7 @@ def check_for_updates():
         latest_version = latest_release["tag_name"]
         release_notes = latest_release["body"]
         
-        if latest_version == f"V{APP_VERSION}":
+        if float(latest_version[1:]) <= float(APP_VERSION):
             messagebox.showinfo("Up-to-date", f"Your application is up-to-date (version {APP_VERSION}).")
         else:
             messagebox.showinfo("Update Available", f"Version {latest_version} is available.\n\nRelease notes:\n{release_notes}")
@@ -449,7 +453,11 @@ game_config_vars = {
     "Death_DurabilityFactorLoss": tk.StringVar(),
     "Death_DurabilityLossFactorAsResources": tk.StringVar(),
     "StarterEquipmentId": tk.StringVar(),
-    "StarterResourcesId": tk.StringVar()
+    "StarterResourcesId": tk.StringVar(),
+    "HeightLimit": tk.StringVar(),
+    "FloorLimit": tk.StringVar(),
+    "ServantLimit": tk.StringVar(),
+    "CastleLimit": tk.StringVar()
 }
 
 # Define labels and choices for each ServerGameSettings.json config option
@@ -510,7 +518,11 @@ game_config_options = {
     "Death_DurabilityFactorLoss": ("Death Durability Factor Loss", [], "Durability loss when killed."),
     "Death_DurabilityLossFactorAsResources": ("Death Durability Loss Factor As Resources", [], "This factors in your current durability into how much resources you lose."),
     "StarterEquipmentId": ("Starter Equipment Id", [], "This is what equipment you start with."),
-    "StarterResourcesId": ("Starter Resources Id", [], "Instead of straight giving the players gear it gives them a lot of resources instead.")
+    "StarterResourcesId": ("Starter Resources Id", [], "Instead of straight giving the players gear it gives them a lot of resources instead."),
+    "HeightLimit": ("Height Limit", [], "Height limit for the castle (1-6)."),
+    "FloorLimit": ("Floor Limit", [], "Determines how many floors can be placed at that castle level (9-800)."),
+    "ServantLimit": ("Servant Limit", [], "Changes how many servants are allowed per castle level (max 20)."),
+    "CastleLimit": ("Castle Limit", [], "Sets the limit of Castle Hearts that can be placed for each player (max 5).")
 }
 
 # Game Settings Presets
@@ -673,7 +685,6 @@ tk.Button(steamcmd_frame, text="Stop Server", command=stop_server).grid(row=6, c
 instructions = """
 1. Ensure you have a stable internet connection.
 2. Click "Install Server" to download and install SteamCMD and the V Rising server.
-2.5 This may look like it is frozen, it is still processing in the backgound.
 3. If SteamCMD is not already installed, the tool will download and set it up for you.
 4. Once SteamCMD is set up, the tool will automatically download the V Rising server files.
 5. Click "Update Server" to update the server files to the latest version.
@@ -706,3 +717,4 @@ adjust_window_size()
 
 # Start the GUI event loop
 root.mainloop()
+
