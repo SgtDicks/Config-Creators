@@ -33,4 +33,4 @@
 - This is the first release with these new features. Please report any issues or bugs you encounter.
 - The base functions have been tested, but comprehensive testing is ongoing.
 
-Enjoy configuring your vRising server! ðŸ˜Š
+Enjoy configuring your vRising server!
